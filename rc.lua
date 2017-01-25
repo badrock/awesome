@@ -1,6 +1,8 @@
 -- Standard awesome library
 local gears = require("gears")
 local awful = require("awful")
+awful.rules = require("awful.rules")
+local tyrannical = require("tyrannical")
 require("awful.autofocus")
 -- Widget and layout library
 local wibox = require("wibox")
@@ -93,6 +95,125 @@ local function client_menu_toggle_fn()
     end
 end
 -- }}}
+
+tyrannical.tags = {
+    {
+        name        = "Main",                 -- Call the tag "Term"
+        init        = true,                   -- Load the tag on startup
+        exclusive   = false,                   -- Refuse any other type of clients (by classes)
+        screen      = {1,2,3},                  -- Create this tag on screen 1 and screen 2
+        layout      = awful.layout.suit.tile, -- Use the tile layout
+    } ,
+    {
+        name = "Terminal",
+        init        = true,
+        exclusive   = false,
+        screen      = {2},
+        layout      = awful.layout.suit.fair,
+        exec_once   = {"terminal"}, --When the tag is accessed for the first time, execute this command
+        --class  = {
+        --    "Thunar", "Konqueror", "Dolphin", "ark", "Nautilus","emelfm"
+        --}
+    } ,
+    {
+        name        = "Internet",
+        init        = true,
+        exclusive   = false,
+      --icon        = "~net.png",                 -- Use this icon for the tag (uncomment with a real path)
+        -- screen      = screen.count()>1 and 2 or 1,-- Setup on screen 2 if there is more than 1 screen, else on screen 1
+        screen      = {1,2,3},
+        layout      = awful.layout.suit.max,      -- Use the max layout
+        class = {
+            "Opera"         , "Firefox"        , "Rekonq"    , "Dillo"        , "Arora",
+            "Chromium"      , "nightly"        , "minefield" , "Skype" , "chronium-browser"    }
+    } ,
+    {
+        name        = "Programming",
+        init        = false, -- This tag wont be created at startup, but will be when one of the
+                             -- client in the "class" section will start. It will be created on
+                             -- the client startup screen
+        exclusive   = true,
+        screen      = {1,2,3},
+        layout      = awful.layout.suit.fair,
+        class       = {"Idea", "Intellij", "Intellij IDEA", "idea.sh", "idea"}
+    } ,
+    {
+        name = "Develop",
+        init        = true,
+        exclusive   = false,
+        screen      = {1,2,3},
+        -- clone_on    = 2, -- Create a single instance of this tag on screen 1, but also show it on screen 2
+                         -- The tag can be used on both screen, but only one at once
+        layout      = awful.layout.suit.fair,
+        class ={ 
+            "Kate", "KDevelop", "Codeblocks", "Code::Blocks" , "DDD", "kate4", "eclipse"}
+    } ,
+    {
+        name = "Files",
+        init        = true,
+        exclusive   = false,
+        screen      = {1,3},
+        layout      = awful.layout.suit.tile,
+        exec_once   = {"nautilus --no-desktop"}, --When the tag is accessed for the first time, execute this command
+        class  = {
+            "Thunar", "Konqueror", "Dolphin", "ark", "Nautilus","emelfm"
+        }
+    } ,
+    {
+        name        = "Latex",
+        init        = false, -- This tag wont be created at startup, but will be when one of the
+                             -- client in the "class" section will start. It will be created on
+                             -- the client startup screen
+        exclusive   = true,
+        layout      = awful.layout.suit.fair,
+        class       = {"Assistant", "Okular", "Evince", "EPDFviewer", "xpdf", "Xpdf", "texmaker"}
+    } ,
+    {
+        name        = "Arduino",
+        init        = false, -- This tag wont be created at startup, but will be when one of the
+        -- client in the "class" section will start. It will be created on
+      -- the client startup screen
+        exclusive   = true,
+        layout      = awful.layout.suit.fair,
+        class       = {"arduino"}
+    } ,
+    {
+        name        = "media",
+        init        = false,
+        exclusive   = true,
+        layout      = awful.layout.suit.fair,
+        class       = {"Spotify"}
+    }
+}
+
+-- Ignore the tag "exclusive" property for the following clients (matched by classes)
+tyrannical.properties.intrusive = {
+    "ksnapshot"     , "pinentry"       , "gtksu"     , "kcalc"        , "xcalc"               ,
+    "feh"           , "Gradient editor", "About KDE" , "Paste Special", "Background color"    ,
+    "kcolorchooser" , "plasmoidviewer" , "Xephyr"    , "kruler"       , "plasmaengineexplorer",
+    "gedit"         , "gnome-terminal"
+}
+
+-- Ignore the tiled layout for the matching clients
+tyrannical.properties.floating = {
+    "MPlayer"      , "pinentry"        , "ksnapshot"  , "pinentry"     , "gtksu"          ,
+    "xine"         , "feh"             , "kmix"       , "kcalc"        , "xcalc"          ,
+    "yakuake"      , "Select Color$"   , "kruler"     , "kcolorchooser", "Paste Special"  ,
+    "New Form"     , "Insert Picture"  , "kcharselect", "mythfrontend" , "plasmoidviewer" 
+}
+
+-- Make the matching clients (by classes) on top of the default layout
+tyrannical.properties.ontop = {
+    "Xephyr"       , "ksnapshot"       , "kruler"
+}
+
+-- Force the matching clients (by classes) to be centered on the screen on init
+tyrannical.properties.centered = {
+    "kcalc"
+}
+
+tyrannical.settings.block_children_focus_stealing = true --Block popups ()
+tyrannical.settings.group_children = true --Force popups/dialogs to have the same tags as the parent client
 
 -- {{{ Menu
 -- Create a launcher widget and a main menu
@@ -187,7 +308,7 @@ awful.screen.connect_for_each_screen(function(s)
     set_wallpaper(s)
 
     -- Each screen has its own tag table.
-    awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
+    -- awful.tag({ "1", "2", "3", "4", "5", "6", "7", "8", "9" }, s, awful.layout.layouts[1])
 
     -- Create a promptbox for each screen
     s.mypromptbox = awful.widget.prompt()
