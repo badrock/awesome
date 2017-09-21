@@ -11,7 +11,9 @@ theme.icon_dir                      = os.getenv("HOME") .. "/.config/awesome/the
 
 --theme.wallpaper                     = os.getenv("HOME") .. "/.config/awesome/themes/holo/wall.png"
 -- theme.wallpaper                     = os.getenv("HOME") .. "/.config/awesome/themes/custom/tree.jpg"
-theme.wallpaper                     = os.getenv("HOME") .. "/Pictures/musback_atoms_minimal_wallpaper_2560x1600.jpg"
+-- theme.wallpaper                     = os.getenv("HOME") .. "/Pictures/musback_atoms_minimal_wallpaper_2560x1600.jpg"
+theme.wallpaper                     = os.getenv("HOME") .. "/Pictures/wall/"
+
 
 theme.topbar_path                   = "png:" .. theme.icon_dir .. "/topbar/"
 

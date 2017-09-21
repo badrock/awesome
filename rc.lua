@@ -12,9 +12,24 @@ local beautiful = require("beautiful")
 local naughty = require("naughty")
 local menubar = require("menubar")
 local hotkeys_popup = require("awful.hotkeys_popup").widget
-
+local drop = require("scratchdrop")
+local lain = require("lain")
+-- Revelation: expands windows
+local revelation = require("revelation")
+-- xrandr
+local xrandr = require("xrandr")
+-- Custom script for app lunching
+require("lfs")
 -- Load Debian menu entries
 require("debian.menu")
+-- Pulse
+require("pulseaudio")
+-- Battery
+require("battery")
+-- external screen detection
+require("awful.remote")
+
+
 
 -- {{{ Error handling
 -- Check if awesome encountered an error during startup and fell back to
@@ -40,6 +55,51 @@ do
     end)
 end
 -- }}}
+
+-- {{{ Run programm once
+local function processwalker()
+   local function yieldprocess()
+      for dir in lfs.dir("/proc") do
+        -- All directories in /proc containing a number, represent a process
+        if tonumber(dir) ~= nil then
+          local f, err = io.open("/proc/"..dir.."/cmdline")
+          if f then
+            local cmdline = f:read("*all")
+            f:close()
+            if cmdline ~= "" then
+              coroutine.yield(cmdline)
+            end
+          end
+        end
+      end
+    end
+    return coroutine.wrap(yieldprocess)
+end
+
+local function run_once(process, cmd)
+   assert(type(process) == "string")
+   local regex_killer = {
+      ["+"]  = "%+", ["-"] = "%-",
+      ["*"]  = "%*", ["?"]  = "%?" }
+
+   for p in processwalker() do
+      if p:find(process:gsub("[-+?*]", regex_killer)) then
+         return
+      end
+   end
+   return awful.util.spawn(cmd or process)
+end
+
+-- start monitor script
+run_once("update-monitor-position")
+-- Autorun programs
+-- run_once("_JAVA_AWT_WM_NONREPARENTING=1; export _JAVA_AWT_WM_NONREPARENTING")
+run_once("wmname LG3D")
+run_once("nm-applet")
+-- trackpad tab enabler
+run_once("xinput set-prop 11 278 2, 3, 0, 0, 1, 3, 2")
+-- Screensaver
+run_once("xscreensaver -no-splash")
 
 -- {{{ Variable definitions
 -- Themes define colours, icons, and wallpapers
@@ -243,7 +303,43 @@ mykeyboardlayout = awful.widget.keyboardlayout()
 
 -- {{{ Wibar
 -- Create a textclock widget
-mytextclock = wibox.widget.textclock()
+mytextclock = awful.widget.textclock()
+
+-- Create a volume widget
+volumewidget = wibox.widget.textbox()
+volumewidget:set_text(pulseaudio.volumeInfo())
+volumetimer = timer({ timeout = 30 })
+volumetimer:connect_signal("timeout", function() volumewidget:set_text(pulseaudio.volumeInfo()) end)
+volumetimer:start()
+
+-- Battery
+batterywidget = wibox.widget.textbox()
+bat_clo = battery.batclosure()
+batterywidget:set_text(bat_clo())
+battimer = timer({ timeout = 30 })
+battimer:connect_signal("timeout", function() batterywidget:set_text(bat_clo()) end)
+battimer:start()
+
+-- Separator TODO chekc them all
+first = wibox.widget.textbox('<span font="Tamsyn 4"> </span>')
+last = wibox.widget.imagebox()
+last:set_image(beautiful.last)
+spr = wibox.widget.imagebox()
+spr:set_image(beautiful.spr)
+spr_small = wibox.widget.imagebox()
+spr_small:set_image(beautiful.spr_small)
+spr_very_small = wibox.widget.imagebox()
+spr_very_small:set_image(beautiful.spr_very_small)
+spr_right = wibox.widget.imagebox()
+spr_right:set_image(beautiful.spr_right)
+spr_bottom_right = wibox.widget.imagebox()
+spr_bottom_right:set_image(beautiful.spr_bottom_right)
+spr_left = wibox.widget.imagebox()
+spr_left:set_image(beautiful.spr_left)
+bar = wibox.widget.imagebox()
+bar:set_image(beautiful.bar)
+bottom_bar = wibox.widget.imagebox()
+bottom_bar:set_image(beautiful.bottom_bar)
 
 -- Create a wibox for each screen and add it
 local taglist_buttons = awful.util.table.join(
@@ -291,12 +387,16 @@ local tasklist_buttons = awful.util.table.join(
 local function set_wallpaper(s)
     -- Wallpaper
     if beautiful.wallpaper then
-        local wallpaper = beautiful.wallpaper
+        local wallpaperPath = beautiful.wallpaper
         -- If wallpaper is a function, call it with the screen
-        if type(wallpaper) == "function" then
-            wallpaper = wallpaper(s)
+        if type(wallpaperPath) == "function" then
+            wallpaper = wallpaperPath(s)
         end
-        gears.wallpaper.maximized(wallpaper, s, true)
+        if screen.count() == 1 then
+          gears.wallpaper.maximized(wallpaperPath .. "center.png", s, true)
+        else
+          gears.wallpaper.maximized(wallpaperPath .. s.index .. ".png", s, true)
+        end
     end
 end
 
@@ -327,7 +427,7 @@ awful.screen.connect_for_each_screen(function(s)
     s.mytasklist = awful.widget.tasklist(s, awful.widget.tasklist.filter.currenttags, tasklist_buttons)
 
     -- Create the wibox
-    s.mywibox = awful.wibar({ position = "top", screen = s })
+    s.mywibox = awful.wibar({ position = "top", screen = s, height = 32 })
 
     -- Add widgets to the wibox
     s.mywibox:setup {
@@ -343,6 +443,8 @@ awful.screen.connect_for_each_screen(function(s)
             layout = wibox.layout.fixed.horizontal,
             mykeyboardlayout,
             wibox.widget.systray(),
+            batterywidget,
+            volumewidget,
             mytextclock,
             s.mylayoutbox,
         },
@@ -428,6 +530,8 @@ globalkeys = awful.util.table.join(
               {description = "select next", group = "layout"}),
     awful.key({ modkey, "Shift"   }, "space", function () awful.layout.inc(-1)                end,
               {description = "select previous", group = "layout"}),
+    awful.key({ modkey }, "F12", function () awful.util.spawn("xscreensaver-command -lock") end,
+              {description = "start screensaver", group = "client"}),
 
     awful.key({ modkey, "Control" }, "n",
               function ()
@@ -456,7 +560,19 @@ globalkeys = awful.util.table.join(
               {description = "lua execute prompt", group = "awesome"}),
     -- Menubar
     awful.key({ modkey }, "p", function() menubar.show() end,
-              {description = "show the menubar", group = "launcher"})
+              {description = "show the menubar", group = "launcher"}),
+    -- Volume
+    awful.key({}, "XF86AudioMute",        function() pulseaudio.volumeMute(); volumewidget:set_text(pulseaudio.volumeInfo()) end),
+    awful.key({}, "XF86AudioLowerVolume", function() pulseaudio.volumeDown(); volumewidget:set_text(pulseaudio.volumeInfo()) end),
+    awful.key({}, "XF86AudioRaiseVolume", function() pulseaudio.volumeUp();   volumewidget:set_text(pulseaudio.volumeInfo()) end),
+    -- Brightness
+    awful.key({ }, "XF86MonBrightnessDown", function ()
+        awful.util.spawn("xbacklight -dec 10") end),
+    awful.key({ }, "XF86MonBrightnessUp", function ()
+        awful.util.spawn("xbacklight -inc 10") end),
+    -- screen
+    awful.key({}, "XF86Finance", function ()
+        xrandr.xrandr() end)
 )
 
 clientkeys = awful.util.table.join(
